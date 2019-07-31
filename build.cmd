@@ -1,4 +1,4 @@
-@if not defined _echo @echo off
+::@if not defined _echo @echo off
 setlocal EnableDelayedExpansion EnableExtensions
 
 :: Define a prefix for most output progress messages that come from this script. That makes
@@ -10,7 +10,7 @@ echo %__MsgPrefix%Starting Build at %TIME%
 set __ThisScriptFull="%~f0"
 set __ThisScriptDir="%~dp0"
 
-call "%__ThisScriptDir%"\setup_vs_tools.cmd
+call %__ThisScriptDir%setup_vs_tools.cmd
 if NOT '%ERRORLEVEL%' == '0' exit /b 1
 
 if defined VS160COMNTOOLS (
@@ -49,6 +49,7 @@ set __BuildOS=Windows_NT
 
 :: Set the various build properties here so that CMake and MSBuild can pick them up
 set "__ProjectDir=%~dp0"
+echo Before: %__ProjectDir%
 :: remove trailing slash
 if %__ProjectDir:~-1%==\ set "__ProjectDir=%__ProjectDir:~0,-1%"
 set "__ProjectFilesDir=%__ProjectDir%"
@@ -58,6 +59,7 @@ if [%__PackagesDir%]==[] set "__PackagesDir=%__ProjectDir%\.packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
 set "__MsbuildDebugLogsDir=%__LogsDir%\MsbuildDebugLogs"
+echo Aft: %__ProjectDir%
 
 set __BuildAll=
 
@@ -359,10 +361,12 @@ REM === Start the build steps
 REM ===
 REM =========================================================================================
 
-@if defined _echo @echo on
+echo Start build Steps build.cmd %__ProjectDir%\
 
+@if defined _echo @echo on
+echo "==="%__ProjectDir%"
 powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__ProjectDir%\eng\common\msbuild.ps1"^
-    %__ProjectDir%\eng\empty.csproj /p:NativeVersionFile="%__RootBinDir%\obj\_version.h"^
+    "%__ProjectDir%\eng\empty.csproj" /p:NativeVersionFile="%__RootBinDir%\obj\_version.h"^
     /p:ArcadeBuild=true /t:GenerateNativeVersionFile /restore^
     %__CommonMSBuildArgs% %__UnprocessedBuildArgs%
 if not !errorlevel! == 0 (
@@ -391,9 +395,10 @@ if %__RestoreOptData% EQU 1 (
 
 set PgoDataPackageVersionOutputFile="%__IntermediatesDir%\optdataversion.txt"
 set IbcDataPackageVersionOutputFile="%__IntermediatesDir%\ibcoptdataversion.txt"
-
+echo __ProjDir: %__ProjectDir% or  is  !__ProjectDir!
 REM Parse the optdata package versions out of msbuild so that we can pass them on to CMake
-call "%__ProjectDir%\dotnet.cmd" msbuild "%OptDataProjectFilePath%" /t:DumpPgoDataPackageVersion /nologo %__CommonMSBuildArgs% /p:PgoDataPackageVersionOutputFile="!PgoDataPackageVersionOutputFile!"
+echo line 400
+call "%__ProjectDir%"\dotnet.cmd msbuild "%OptDataProjectFilePath%" /t:DumpPgoDataPackageVersion /nologo %__CommonMSBuildArgs% /p:PgoDataPackageVersionOutputFile=!PgoDataPackageVersionOutputFile!
 
  if not !errorlevel! == 0 (
     echo "Failed to get PGO data package version."
@@ -406,7 +411,7 @@ if not exist "!PgoDataPackageVersionOutputFile!" (
 
 set /p __PgoOptDataVersion=<"!PgoDataPackageVersionOutputFile!"
 
-call "%__ProjectDir%\dotnet.cmd" msbuild "%OptDataProjectFilePath%" /t:DumpIbcDataPackageVersion /nologo %__CommonMSBuildArgs% /p:IbcDataPackageVersionOutputFile="!IbcDataPackageVersionOutputFile!"
+call "%__ProjectDir%\dotnet.cmd" msbuild "%OptDataProjectFilePath%" /t:DumpIbcDataPackageVersion /nologo %__CommonMSBuildArgs% /p:IbcDataPackageVersionOutputFile=!IbcDataPackageVersionOutputFile!
 
  if not !errorlevel! == 0 (
     echo "Failed to get IBC data package version."
@@ -441,9 +446,11 @@ if NOT DEFINED PYTHON (
 )
 
 if %__BuildCoreLib% EQU 1 (
+echo runing phython
     echo %__MsgPrefix%Laying out dynamically generated EventSource classes
-    "!PYTHON!" -B -Wall %__SourceDir%\scripts\genRuntimeEventSources.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir% || exit /b 1
+    "!PYTHON!" -B -Wall "%__SourceDir%\scripts\genRuntimeEventSources.py" --man "%__SourceDir%"\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir% || exit /b 1
 )
+
 
 REM =========================================================================================
 REM ===
